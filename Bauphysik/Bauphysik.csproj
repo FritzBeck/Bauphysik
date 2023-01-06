@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+	 <LangVersion>9.0</LangVersion>
+    <Title>Bauphysik</Title>
+    <Description>Description of Bauphysik</Description>
+    <TargetExt>.rhp</TargetExt>
+    <UseWpf>true</UseWpf>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="EmbeddedResources\**\*" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="RhinoCommon" Version="7.21.22208.13001" IncludeAssets="compile;build" />
+    <PackageReference Include="RhinoWindows" Version="7.21.22208.13001" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Reference Include="LayerManager">
+      <HintPath>..\..\..\..\01 LayerManager\06 Code\LayerManager\LayerManager\bin\Debug\net48\LayerManager.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  
+  <PropertyGroup Condition="$(Configuration) == 'Debug' AND $([MSBuild]::IsOSPlatform(Windows))">
+    <StartProgram>C:\Program Files\Rhino 7\System\Rhino.exe</StartProgram>
+    <StartArguments></StartArguments>
+    <StartAction>Program</StartAction>
+  </PropertyGroup>
+  
+</Project>
