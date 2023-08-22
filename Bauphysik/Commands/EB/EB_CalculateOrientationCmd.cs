@@ -13,6 +13,8 @@ using Bauphysik.Data;
 using Bauphysik.Helpers;
 using LayerManager;
 using LayerManager.Parser;
+using LayerManager.Data;
+using LayerManager.Doc;
 
 namespace Bauphysik.Commands
 {
@@ -23,23 +25,21 @@ namespace Bauphysik.Commands
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            //Lade FilePath
-            string filepath = BauphysikPlugin.Instance.StringArray.Item(0);
-            if (string.IsNullOrWhiteSpace(filepath))
+            #region Get LamaData
+
+            // Return if ActiveLamaData == null
+            if (LamaDoc.Instance.ActiveLamaData == null)
             {
-                RhinoApp.WriteLine("Keine Tabellen verknüpft.");
+                RhinoApp.WriteLine("Keine Tabellen geladen.");
                 return Result.Success;
             }
 
-            //Lade Data
-            XMLReader xMLReader = new XMLReader();
-            RootDB data = xMLReader.ReadFile(filepath);
-            if (data == null)
-            {
-                RhinoApp.WriteLine("Kein gültiger Pfad verknüpft.");
-                return Result.Success;
-            }
+            // Abbreviate ActiveLamaData
+            LamaData lmData = LamaDoc.Instance.ActiveLamaData;
 
+            #endregion
+
+            // <-- Code for object selection comes here -->
 
             //Get Innenflaechen
             var gc = new GetObject();
@@ -73,6 +73,27 @@ namespace Bauphysik.Commands
 
             bool overWriteBool = overWriteBoolOpt.CurrentValue;
 
+
+
+            // <-- Code for object selection ends here -->
+
+            
+
+            #region Get Model
+
+            // Write Data to Model
+            Connector connector = new Connector(lmData);
+            BauModel model = connector.Read();
+            if (model == null)
+            {
+                RhinoApp.WriteLine("Fehler beim Laden des Modells.");
+                return Result.Failure;
+            }
+
+            #endregion
+
+            // <-- Code for calculations comes here -->
+
             //Get Startpunkt
             GetPoint gp = new GetPoint();
             gp.SetCommandPrompt("Wähle Startpunkt (Süden)");
@@ -95,55 +116,36 @@ namespace Bauphysik.Commands
             //Create Line
             LineCurve lineCurve = new LineCurve(pt_start, pt_end);
 
-            RhinoApp.WriteLine("Starte Berchnung der Orientierung...");
-
-
-
-            RhinoReader rhinoReader = new RhinoReader();
-            rhinoReader.UpdateFromLayers(ref data);
-            rhinoReader.UpdateFromObjects(ref data, selectedObjectRefs);
-
-            //Write Data to Model
-            Connector connector = new Connector();
-            BauModel model = connector.InitModel(data);
-
-            //Handle Errors 2
-            if (model == null)
-            {
-                RhinoApp.WriteLine("Fehler beim Laden des Modells.");
-                return Result.Failure;
-            }
-            if (model.Innenflaechen == null || model.Innenflaechen.Count == 0)
-            {
-                RhinoApp.WriteLine("Keine Innenflaechen geladen.");
-                return Result.Failure;
-            }
+            // Start message
+            RhinoApp.WriteLine("Starte Berechnung der Orientierung...");
 
             //Calculate orientation
             foreach (Innenflaeche innenflaeche in model.Innenflaechen)
                 innenflaeche.CalculateOrientation(lineCurve, overWriteBool);
 
-            //Write Model to Data
-            connector.Write(model, ref data);
-
-            //Update Rhino and XML File from Data
-            XMLWriter writer = new XMLWriter();
-            writer.WriteFile(data, filepath);
-
-            RhinoWriter rhinoWriter = new RhinoWriter();
-            rhinoWriter.UpdateRhino(data);
-
-            //Update Views in Rhino
-            RhinoDoc.ActiveDoc.Views.Redraw();
-
-            //Update Panel
-            ObjRef[] objRefs = RhinoDoc.ActiveDoc.Objects.GetSelectedObjects(false, false).Cast<RhinoObject>().Select(i => new ObjRef(i)).ToArray();
-            if (objRefs == null || objRefs.Length == 0) return Result.Failure;
-
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs[0], false);
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs[0], true);
-
+            // End message
             RhinoApp.WriteLine("Berechnung der Orientierung abgeschlossen.");
+
+            // <-- Code for calculations ends here -->
+
+            #region Write model
+
+            // Write back to LamaData
+            connector.Write(model);
+
+            // Update Rhino objects
+            lmData.WriteRhinoObjects();
+
+            
+            
+
+            // Update Panel
+            LamaDoc.Instance.Update();
+
+            // Update views
+            doc.Views.Redraw();
+
+            #endregion
 
             return Result.Success;
         }

@@ -15,7 +15,7 @@ namespace Bauphysik.Data
     {
         public Referenzflaeche(Guid objectGuid)
         {
-            ObjectGuid = objectGuid;
+            ObjectId = objectGuid;
         }
 
         public double FlaecheBrutto()

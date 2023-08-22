@@ -8,7 +8,7 @@ namespace Bauphysik.Data
 {
     public class Raumkategorie
     {
-        public Guid ObjectGuid;
+        public Guid ObjectId;
 
         public string Name;
 
@@ -20,7 +20,7 @@ namespace Bauphysik.Data
 
         public Raumkategorie(Guid guid, string kategorie)
         {
-            ObjectGuid = guid;
+            ObjectId = guid;
             Name = kategorie;
         }
 

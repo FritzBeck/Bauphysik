@@ -11,7 +11,6 @@ namespace Bauphysik.Data
 {
     public abstract class Konstruktion : FassadenElement
     {
-
         public double? R_iw { get; set; }
         public double? UWert { get; set; }
 
@@ -23,15 +22,15 @@ namespace Bauphysik.Data
         public void BerechneReiw37(double ss, Innenflaeche relatedInnenflaeche)
         {
             RhinoApp.WriteLine();
-            if (this is Nebenkonstruktion) RhinoApp.WriteLine(Names.shift3 + "Nebenkonstruktion (Guid: " + ObjectGuid.ToString() + ")");
-            if (this is Hauptkonstruktion) RhinoApp.WriteLine(Names.shift3 + "Hauptkonstruktion (Guid: " + ObjectGuid.ToString() + ")");
+            if (this is Nebenkonstruktion) RhinoApp.WriteLine(Names.shift3 + "Nebenkonstruktion (Guid: " + ObjectId.ToString() + ")");
+            if (this is Hauptkonstruktion) RhinoApp.WriteLine(Names.shift3 + "Hauptkonstruktion (Guid: " + ObjectId.ToString() + ")");
 
-            if (RhinoHelpers.CheckIsNull(R_iw, Names.KonstruktionAttributeEnum.Riw.ToString(), this.ObjectGuid.ToString(), true)) return;
+            if (RhinoHelpers.CheckIsNull(R_iw, Names.KonstruktionAttributeEnum.Riw.ToString(), this.ObjectId.ToString(), true)) return;
             
             double flaeche = 0;
             if (this is Nebenkonstruktion nkonstr)
             {
-                if (RhinoHelpers.CheckIsNull(nkonstr.Flaeche, Names.FassadenElementAttributeEnum.Flaeche.ToString(), this.ObjectGuid.ToString(), true)) return;
+                if (RhinoHelpers.CheckIsNull(nkonstr.Flaeche, Names.FassadenElementAttributeEnum.Flaeche.ToString(), this.ObjectId.ToString(), true)) return;
                 flaeche = nkonstr.Flaeche ?? 0;
             }
 

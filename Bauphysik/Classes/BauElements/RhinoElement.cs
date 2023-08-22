@@ -11,18 +11,18 @@ namespace Bauphysik.Data
 {
     public abstract class RhinoElement : IModelElement
     {
-        public Guid ObjectGuid { get; set; }
+        public Guid ObjectId { get; set; }
         public string Typ { get; set; }
 
 
         public RhinoObject GetRhinoObject()
         {
-            return RhinoDoc.ActiveDoc.Objects.Find(ObjectGuid);
+            return RhinoDoc.ActiveDoc.Objects.Find(ObjectId);
         }
 
         public ObjRef GetObjRef()
         {
-            return new ObjRef(RhinoDoc.ActiveDoc, ObjectGuid);
+            return new ObjRef(RhinoDoc.ActiveDoc, ObjectId);
         }
 
         public Brep GetBrep()

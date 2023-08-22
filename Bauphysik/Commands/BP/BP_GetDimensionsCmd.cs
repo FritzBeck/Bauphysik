@@ -13,32 +13,31 @@ using System.Data;
 using Bauphysik.Data;
 using LayerManager;
 using LayerManager.Parser;
+using LayerManager.Data;
+using LayerManager.Doc;
 
 namespace Bauphysik.Commands
 {
     public class BP_GetDimensionsCmd : Command
     {
-
         public override string EnglishName => "BP_LeseDimensionen";
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            //Lade FilePath
-            string filepath = BauphysikPlugin.Instance.StringArray.Item(0);
-            if (string.IsNullOrWhiteSpace(filepath))
+
+            #region Get LamaData
+
+            // Return if ActiveLamaData == null
+            if (LamaDoc.Instance.ActiveLamaData == null)
             {
-                RhinoApp.WriteLine("Keine Tabellen verknüpft.");
+                RhinoApp.WriteLine("Keine Tabellen geladen.");
                 return Result.Success;
             }
 
-            //Lade Data
-            XMLReader xMLReader = new XMLReader();
-            RootDB data = xMLReader.ReadFile(filepath);
-            if (data == null)
-            {
-                RhinoApp.WriteLine("Kein gültiger Pfad verknüpft.");
-                return Result.Success;
-            }
+            // Abbreviate ActiveLamaData
+            LamaData lmData = LamaDoc.Instance.ActiveLamaData;
+
+            #endregion
 
             //Get Innenflaechen
             var gc = new GetObject();
@@ -66,76 +65,73 @@ namespace Bauphysik.Commands
                 break;
             }
 
-            RhinoApp.WriteLine("Starte Lese Dimensionen...");
+            RhinoApp.WriteLine("Starte LeseDimensionen...");
 
-            RhinoReader rhinoReader = new RhinoReader();
-            rhinoReader.UpdateFromLayers(ref data);
-            rhinoReader.UpdateFromObjects(ref data, selectedObjectRefs);
+            // Read RhinoObjects
+            lmData.ReadRhinoObjects(selectedObjectRefs);
 
-            //Get Fenster 
-            List<Fenster> fensters = GetFensters(data);
+            // Get Fenster 
+            List<Fenster> fensters = GetFensters(lmData);
 
-            //Handle Errors 2
+            // Handle Errors 2
             if (fensters == null || fensters.Count == 0)
             {
                 RhinoApp.WriteLine("Fehler beim Laden des Modells.");
                 return Result.Failure;
             }
 
+            // Get Dimensions
             foreach (Fenster fenster in fensters)
             {
                 if (fenster == null) continue;
                 fenster.GetDimensions();
             }
 
-            //Write Fenster to Data
-            WriteFensters(fensters, ref data);
+            // Write back to LamaData
+            WriteFensters(fensters, lmData);
 
-            //Update Rhino and XML File from Data
-            XMLWriter writer = new XMLWriter();
-            writer.WriteFile(data, filepath);
+            // Update Rhino objects
+            lmData.WriteRhinoObjects();
 
-            RhinoWriter rhinoWriter = new RhinoWriter();
-            rhinoWriter.UpdateRhino(data);
+            // Update Panel
+            LamaDoc.Instance.Update();
 
-            //Update Panel
-            ObjRef[] objRefs = RhinoDoc.ActiveDoc.Objects.GetSelectedObjects(false, false).Cast<RhinoObject>().Select(i => new ObjRef(i)).ToArray();
-            if (objRefs == null || objRefs.Length == 0) return Result.Failure;
-
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs, false);
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs, true);
+            // Update views
+            doc.Views.Redraw();
 
             RhinoApp.WriteLine("Lese Dimensionen abgeschlossen.");
             return Result.Success;
         }
 
-        public List<Fenster> GetFensters(RootDB data)
+        public List<Fenster> GetFensters(LamaData lmData)
         {
-            Connector connector = new Connector();
+            Connector connector = new Connector(lmData);
             List<Fenster> fensters = new List<Fenster>();
 
-            TableDB tableDB = data.TableDBs.GetTable(Helpers.Names.TypValueEnum.Fenster.ToString());
-            if (tableDB == null || tableDB.Table == null || tableDB.Table.Rows.Count == 0) return null;
+            LamaTable lmTable = lmData.LamaTables.GetTable(Helpers.Names.TypValueEnum.Fenster.ToString());
+            if (lmTable == null || lmTable.Rows.Count == 0) return null;
 
-            foreach (DataRow row in tableDB.Table.Rows)
+            foreach (DataRow row in lmTable.Rows)
             {
-                Guid guid = TableDB.GetRowID(row);
-                Fenster fenster = connector.CreateFenster(guid, data);
-                if (fenster != null) fensters.Add(fenster);
+                if (row is RhinoRow lmRow)
+                {
+                    Fenster fenster = connector.CreateFenster(lmRow.GetRhinoObjectID());
+                    if (fenster != null) fensters.Add(fenster);
+                }
+
             }
 
             return fensters;
         }
 
-
-        public void WriteFensters(List<Fenster> fensters, ref RootDB data)
+        public void WriteFensters(List<Fenster> fensters, LamaData lmData)
         {
-            Connector connector = new Connector();
+            Connector connector = new Connector(lmData);
 
             foreach (Fenster fenster in fensters)
             {
                 if (fenster == null) continue;
-                connector.WriteFenster(fenster, null, ref data);
+                connector.WriteFenster(fenster, null);
             }
         }
     }

@@ -25,7 +25,7 @@ namespace Bauphysik.Data
 
         public Fassade(Guid fassadeGuid)
         {
-            ObjectGuid = fassadeGuid;
+            ObjectId = fassadeGuid;
 
             Fensters = new List<Fenster>();
             Einbauteils = new List<Einbauteil>();
@@ -143,7 +143,6 @@ namespace Bauphysik.Data
 
         }
 
-
         public void UpdateAbstractView(Innenflaeche relatedInnenflaeche)
         {
 
@@ -179,10 +178,6 @@ namespace Bauphysik.Data
             RhinoDoc.ActiveDoc.Views.Redraw();
 
         }
-
-
-
-
         public void UpdateConcreteView(Innenflaeche relatedInnenflaeche)
         {
 

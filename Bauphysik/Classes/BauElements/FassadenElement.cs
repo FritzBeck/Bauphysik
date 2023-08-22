@@ -65,14 +65,12 @@ namespace Bauphysik.Data
                 Curve crv = objRef.Curve();
                 if (crv == null) return;
 
-
                 AreaMassProperties prop = AreaMassProperties.Compute(crv);
                 if (prop == null) return;
                 
                 Point3d centroid = prop.Centroid;
 
                 //get wall brep
-
                 Brep wallBrep = innenflaeche.GetBrep();
                 if (wallBrep == null) return;
                 if (!wallBrep.IsSurface) return;
@@ -121,7 +119,7 @@ namespace Bauphysik.Data
             Interval widthInterval = new Interval(0, heigth);
             Interval heightInterval = new Interval(0, length);
             PlaneSurface surface = new PlaneSurface(plane, widthInterval, heightInterval);
-            ObjectGuid = RhinoDoc.ActiveDoc.Objects.AddSurface(surface);
+            ObjectId = RhinoDoc.ActiveDoc.Objects.AddSurface(surface);
 
             return;
         }
@@ -240,7 +238,7 @@ namespace Bauphysik.Data
                 if (fenster.Breite != null && fenster.Hoehe != null)
                 {
                     Rectangle3d rect = new Rectangle3d(plane, fenster.Breite ?? 0, fenster.Hoehe ?? 0);
-                    this.ObjectGuid = RhinoDoc.ActiveDoc.Objects.AddRectangle(rect);
+                    this.ObjectId = RhinoDoc.ActiveDoc.Objects.AddRectangle(rect);
 
                     return;
                 }
@@ -248,7 +246,7 @@ namespace Bauphysik.Data
                 if (fenster.Durchmesser != null)
                 {
                     Circle circle = new Circle(plane, fenster.Durchmesser/2 ?? 0);
-                    this.ObjectGuid = RhinoDoc.ActiveDoc.Objects.AddCircle(circle);
+                    this.ObjectId = RhinoDoc.ActiveDoc.Objects.AddCircle(circle);
 
                     return;
                 }
@@ -256,7 +254,7 @@ namespace Bauphysik.Data
             else
             {
                 Rectangle3d rect = new Rectangle3d(plane, 0.5, 0.5);
-                this.ObjectGuid = RhinoDoc.ActiveDoc.Objects.AddRectangle(rect);
+                this.ObjectId = RhinoDoc.ActiveDoc.Objects.AddRectangle(rect);
             }
 
         }

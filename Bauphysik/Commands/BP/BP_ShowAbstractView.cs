@@ -13,6 +13,9 @@ using System.Data;
 using Bauphysik.Data;
 using LayerManager;
 using LayerManager.Parser;
+using LayerManager.Data;
+using LayerManager.Doc;
+using Bauphysik.Helpers;
 
 namespace Bauphysik.Commands
 {
@@ -23,26 +26,25 @@ namespace Bauphysik.Commands
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            //Lade FilePath
-            string filepath = BauphysikPlugin.Instance.StringArray.Item(0);
-            if (string.IsNullOrWhiteSpace(filepath))
+            #region Get LamaData
+
+            // Return if ActiveLamaData == null
+            if (LamaDoc.Instance.ActiveLamaData == null)
             {
-                RhinoApp.WriteLine("Keine Tabellen verknüpft.");
+                RhinoApp.WriteLine("Keine Tabellen geladen.");
                 return Result.Success;
             }
 
-            //Lade Data
-            XMLReader xMLReader = new XMLReader();
-            RootDB data = xMLReader.ReadFile(filepath);
-            if (data == null)
-            {
-                RhinoApp.WriteLine("Kein gültiger Pfad verknüpft.");
-                return Result.Success;
-            }
+            // Abbreviate ActiveLamaData
+            LamaData lmData = LamaDoc.Instance.ActiveLamaData;
 
-            //Get Innenflaechen
+            #endregion
+
+            // <-- Code for object selection comes here -->
+
+            // Get Innenflaechen
             var gc = new GetObject();
-            gc.SetCommandPrompt("Wähle Innenflächen um Fassadenelement zu erstellen");
+            gc.SetCommandPrompt("Wähle Objekte um abstrakte Ansicht zu zeigen.");
 
             ObjRef[] selectedObjectRefs = null;
 
@@ -66,57 +68,80 @@ namespace Bauphysik.Commands
                 break;
             }
 
-            RhinoApp.WriteLine("Starte Zeige abstrakte Ansicht...");
+            // Read RhinoObjects
+            lmData.ReadRhinoObjects();
 
-            RhinoReader rhinoReader = new RhinoReader();
-            rhinoReader.UpdateFromLayers(ref data);
-            rhinoReader.UpdateFromObjects(ref data, selectedObjectRefs);
-            rhinoReader.UpdateFromChildObjects(ref data);
+            // Read only selected Innenflaeche
+            LamaTable lmTable = lmData.LamaTables.GetTable(Names.TypValueEnum.Innenflaeche.ToString());
+            if (lmTable == null)
+            {
+                RhinoApp.WriteLine("Keine Tabelle 'Innenflaeche' gefunden.");
+                return Result.Success;
+            }
 
-            //Write Data to Model
-            Connector connector = new Connector();
-            BauModel model = connector.InitModel(data);
+            lmTable.Clear();
 
-            //Handle Errors 2
+            if (lmTable is RhinoElementTable rhinoTable)
+            {
+                rhinoTable.ReadRhinoObjects(selectedObjectRefs);
+
+                RhinoApp.WriteLine("ObjRefs" + selectedObjectRefs.Length.ToString());
+                RhinoApp.WriteLine("Rows" + rhinoTable.Rows.Count.ToString());
+            }
+
+
+            // <-- Code for object selection ends here -->
+
+            #region Get Model
+
+            // Write Data to Model
+            Connector connector = new Connector(lmData);
+            BauModel model = connector.Read();
             if (model == null)
             {
                 RhinoApp.WriteLine("Fehler beim Laden des Modells.");
                 return Result.Failure;
             }
-            if (model.Innenflaechen == null || model.Innenflaechen.Count == 0)
-            {
-                RhinoApp.WriteLine("Keine Innenflaechen geladen.");
-                return Result.Failure;
-            }
 
-            //Erstelle Innenflaechen
-            foreach (Innenflaeche innenflaeche in model.Innenflaechen)
-            {
-                if (innenflaeche.Fassade == null) continue;
-                innenflaeche.Fassade.UpdateAbstractView(innenflaeche);
-            }
+            #endregion
 
-            //Write Model to Data
-            connector.Write(model, ref data);
+            // <-- Code for calculations comes here -->
 
-            //Update Rhino and XML File from Data
-            XMLWriter writer = new XMLWriter();
-            writer.WriteFile(data, filepath);
+            // Start message
+            RhinoApp.WriteLine("Starte Zeige abstrakte Ansicht...");
 
-            RhinoWriter rhinoWriter = new RhinoWriter();
-            rhinoWriter.UpdateRhino(data);
+            //Update Innenflaechen
+            if (model.Innenflaechen != null)
+                foreach (Innenflaeche innenflaeche in model.Innenflaechen)
+                {
+                    if (innenflaeche.Fassade == null) continue;
+                    innenflaeche.Fassade.UpdateAbstractView(innenflaeche);
+                }
 
-            //Update Views in Rhino
-            RhinoDoc.ActiveDoc.Views.Redraw();
+            // End message
+            RhinoApp.WriteLine("Zeige abstakte Ansicht abgeschlossen");
 
-            //Update Panel
-            ObjRef[] objRefs = RhinoDoc.ActiveDoc.Objects.GetSelectedObjects(false, false).Cast<RhinoObject>().Select(i => new ObjRef(i)).ToArray();
-            if (objRefs == null || objRefs.Length == 0) return Result.Failure;
+            // <-- Code for calculations ends here -->
 
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs, false);
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs, true);
+            #region Write model
 
-            RhinoApp.WriteLine("Zeige abstrakte Ansicht abgeschlossen");
+            // Write back to LamaData
+            connector.Write(model);
+
+            // Update Rhino objects
+            lmData.WriteRhinoObjects();
+
+            
+            
+
+            // Update Panel
+            LamaDoc.Instance.Update();
+
+            // Update views
+            doc.Views.Redraw();
+
+            #endregion
+
             return Result.Success;
         }
     }

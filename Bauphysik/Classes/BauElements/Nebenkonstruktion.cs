@@ -17,7 +17,7 @@ namespace Bauphysik.Data
 
         public Nebenkonstruktion(Guid objectGuid)
         {
-            ObjectGuid = objectGuid;
+            ObjectId = objectGuid;
         }
 
         public Nebenkonstruktion()

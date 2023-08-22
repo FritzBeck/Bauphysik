@@ -28,18 +28,11 @@ namespace Bauphysik.Data
         }
 
         /// <summary>
-        /// Get Innenflaeche by Guid
+        /// Get Innenflaeche by Guid.
         /// </summary>
         /// <param name="objectId"></param>
         /// <returns></returns>
-        public Innenflaeche FindInnenflaeche(Guid objectId)
-        {
-            foreach (Innenflaeche innenflaeche in Innenflaechen)
-                if (innenflaeche.ObjectGuid == objectId) 
-                    return innenflaeche;
-
-            return null;
-        }
+        public Innenflaeche GetInnenflaeche(Guid objectId) => Innenflaechen.Cast<Innenflaeche>().Where(i => i.ObjectId == objectId).FirstOrDefault();
 
     }
 }

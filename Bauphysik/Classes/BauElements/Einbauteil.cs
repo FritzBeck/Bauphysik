@@ -25,7 +25,7 @@ namespace Bauphysik.Data
 
         public Einbauteil(Guid objectGuid)
         {
-            ObjectGuid = objectGuid;
+            ObjectId = objectGuid;
         }
 
         public Einbauteil()
@@ -40,13 +40,13 @@ namespace Bauphysik.Data
             RhinoApp.WriteLine();
             RhinoApp.WriteLine(Names.shift + "Berechne Reiw38:");
             RhinoApp.WriteLine(Names.shift2 + "Einbauteil");
-            RhinoApp.WriteLine(Names.shift3 + "Guid: " + ObjectGuid.ToString());
+            RhinoApp.WriteLine(Names.shift3 + "Guid: " + ObjectId.ToString());
 
 
-            if (RhinoHelpers.CheckIsNull(Anzahl, Names.EinbauteilAttributeEnum.Anzahl.ToString(), this.ObjectGuid.ToString(), true)) return;
-            if (RhinoHelpers.CheckIsNull(L_situ, Names.EinbauteilAttributeEnum.lSitu.ToString(), this.ObjectGuid.ToString(), true)) return;
-            if (RhinoHelpers.CheckIsNull(L_lab, Names.EinbauteilAttributeEnum.lLab.ToString(), this.ObjectGuid.ToString(), true)) return;
-            if (RhinoHelpers.CheckIsNull(D_newlab, Names.EinbauteilAttributeEnum.DnewLab.ToString(), this.ObjectGuid.ToString(), true)) return;
+            if (RhinoHelpers.CheckIsNull(Anzahl, Names.EinbauteilAttributeEnum.Anzahl.ToString(), this.ObjectId.ToString(), true)) return;
+            if (RhinoHelpers.CheckIsNull(L_situ, Names.EinbauteilAttributeEnum.lSitu.ToString(), this.ObjectId.ToString(), true)) return;
+            if (RhinoHelpers.CheckIsNull(L_lab, Names.EinbauteilAttributeEnum.lLab.ToString(), this.ObjectId.ToString(), true)) return;
+            if (RhinoHelpers.CheckIsNull(D_newlab, Names.EinbauteilAttributeEnum.DnewLab.ToString(), this.ObjectId.ToString(), true)) return;
 
             double anzahl = Anzahl ?? 0;
             double l_situ = L_situ ?? 0;

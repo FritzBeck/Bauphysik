@@ -11,7 +11,7 @@ namespace Bauphysik.Data
 {
     public class Raum : SpatialElement
     {
-        public Guid ObjectGuid { get; set; }
+        public Guid ObjectId { get; set; }
 
         public string Raumname { get; set; }
         public string Raumkategorie { get; set; }
@@ -27,40 +27,32 @@ namespace Bauphysik.Data
 
         public double? Rerf_Max { get; set; }
 
-        public List<Guid> RelatedGuids { get; set; }
-
+        public List<Innenflaeche> Innenflaechen { get; set; } = new List<Innenflaeche>();
 
 
         public Raum(Guid guid)
         {
-            ObjectGuid = guid;
+            ObjectId = guid;
         }
 
 
-        public double Sg(List<Innenflaeche> innenflaechen, bool writeOutput)
+        public double Sg(bool writeOutput)
         {
-            if (RelatedGuids == null || RelatedGuids.Count == 0) return 0;
-            if (innenflaechen == null || innenflaechen.Count == 0) return 0;
+            if (Innenflaechen == null || Innenflaechen.Count == 0) return 0;
 
-            List<double> doubles = new List<double>();
-            foreach (Guid guid in RelatedGuids)
-            {
-                Innenflaeche innenflaeche = innenflaechen.Cast<Innenflaeche>().Where(i => i.ObjectGuid == guid).FirstOrDefault();
-                if (innenflaeche.Grundflaeche == true)
-                    doubles.Add(innenflaeche.FlaecheBrutto());
-            }
+            List<double> bruttoFlaechen = Innenflaechen.Cast<Innenflaeche>().Where(i => i.Grundflaeche == true).Select(i => i.FlaecheBrutto()).ToList();
 
             double sg = 0;
             if (writeOutput) RhinoApp.Write("sg = ");
-            for (int i = 0; i < doubles.Count; i++)
+            for (int i = 0; i < bruttoFlaechen.Count; i++)
             {
-                sg += doubles[i];
-                if (writeOutput) RhinoApp.Write(Math.Round(doubles[i], 3).ToString());
-                if (i < doubles.Count - 1)
+                sg += bruttoFlaechen[i];
+                if (writeOutput) RhinoApp.Write(Math.Round(bruttoFlaechen[i], 3).ToString());
+                if (i < bruttoFlaechen.Count - 1)
                     if (writeOutput) RhinoApp.Write(" + ");
             }
 
-            if (doubles != null && doubles.Count > 0)
+            if (bruttoFlaechen != null && bruttoFlaechen.Count > 0)
                 if (writeOutput) RhinoApp.Write(" = ");
 
             sg = Math.Round(sg, 3);
@@ -69,30 +61,22 @@ namespace Bauphysik.Data
             return sg;
         }
 
-        public double Ss(List<Innenflaeche> innenflaechen, bool writeOutput)
+        public double Ss(bool writeOutput)
         {
-            if (RelatedGuids == null || RelatedGuids.Count == 0) return 0;
-            if (innenflaechen == null || innenflaechen.Count == 0) return 0;
-
-            List<double> doubles = new List<double>();
-            foreach (Guid guid in RelatedGuids)
-            {
-                Innenflaeche innenflaeche = innenflaechen.Cast<Innenflaeche>().Where(i => i.ObjectGuid == guid).FirstOrDefault();
-                if (innenflaeche.Fassadenflaeche == true)
-                    doubles.Add(innenflaeche.FlaecheBrutto());
-            }
+            if (Innenflaechen == null || Innenflaechen.Count == 0) return 0;
+            List<double> bruttoFlaechen = Innenflaechen.Cast<Innenflaeche>().Where(i => i.Grundflaeche == true).Select(i => i.FlaecheBrutto()).ToList();
 
             double ss = 0;
             if (writeOutput) RhinoApp.Write("ss = ");
-            for (int i = 0; i < doubles.Count; i++)
+            for (int i = 0; i < bruttoFlaechen.Count; i++)
             {
-                ss += doubles[i];
-                if (writeOutput) RhinoApp.Write(Math.Round(doubles[i], 3).ToString());
-                if (i < doubles.Count - 1)
+                ss += bruttoFlaechen[i];
+                if (writeOutput) RhinoApp.Write(Math.Round(bruttoFlaechen[i], 3).ToString());
+                if (i < bruttoFlaechen.Count - 1)
                     if (writeOutput) RhinoApp.Write(" + ");
             }
 
-            if (doubles != null && doubles.Count > 0)
+            if (bruttoFlaechen != null && bruttoFlaechen.Count > 0)
                 if (writeOutput) RhinoApp.Write(" = ");
 
             ss = Math.Round(ss, 3);
@@ -106,7 +90,7 @@ namespace Bauphysik.Data
         {
 
             if (Rerf_VDI_Tag != null && !overWriteBool) return;
-            if (RelatedGuids == null || RelatedGuids.Count == 0)
+            if (Innenflaechen == null || Innenflaechen.Count == 0)
             {
                 RhinoApp.WriteLine(Names.shift + Names.warning + "Dem Raum sind keine Innenflaechen zugeordnet."+ Names.cancelCalc);
                 return;
@@ -140,7 +124,7 @@ namespace Bauphysik.Data
             RhinoApp.WriteLine(Names.shift3 + "k = " + k);
 
             RhinoApp.Write(Names.shift3);
-            double ss = Ss(innenflaechen, true);
+            double ss = Ss(true);
 
             if (ss <= 0)
             {
@@ -150,7 +134,7 @@ namespace Bauphysik.Data
             }
 
             RhinoApp.Write(Names.shift3);
-            double sg = Sg(innenflaechen, true);
+            double sg = Sg(true);
             
 
             if (sg <= 0)
@@ -216,7 +200,7 @@ namespace Bauphysik.Data
             RhinoApp.WriteLine(Names.shift3 + "k = " + k);
 
             RhinoApp.Write(Names.shift3);
-            double ss = Ss(innenflaechen, true);
+            double ss = Ss(true);
 
             if (ss <= 0)
             {
@@ -226,7 +210,7 @@ namespace Bauphysik.Data
             }
 
             RhinoApp.Write(Names.shift3);
-            double sg = Sg(innenflaechen, true);
+            double sg = Sg(true);
 
             if (sg <= 0)
             {

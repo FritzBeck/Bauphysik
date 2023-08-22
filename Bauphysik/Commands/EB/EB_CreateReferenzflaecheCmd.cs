@@ -11,6 +11,8 @@ using System.Text;
 using System.Threading.Tasks;
 using LayerManager;
 using LayerManager.Parser;
+using LayerManager.Data;
+using LayerManager.Doc;
 
 namespace Bauphysik.Commands
 {
@@ -20,22 +22,21 @@ namespace Bauphysik.Commands
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            //Lade FilePath
-            string filepath = BauphysikPlugin.Instance.StringArray.Item(0);
-            if (string.IsNullOrWhiteSpace(filepath))
+            #region Get LamaData
+
+            // Return if ActiveLamaData == null
+            if (LamaDoc.Instance.ActiveLamaData == null)
             {
-                RhinoApp.WriteLine("Keine Tabellen verknüpft.");
+                RhinoApp.WriteLine("Keine Tabellen geladen.");
                 return Result.Success;
             }
 
-            //Lade Data
-            XMLReader xMLReader = new XMLReader();
-            RootDB data = xMLReader.ReadFile(filepath);
-            if (data == null)
-            {
-                RhinoApp.WriteLine("Kein gültiger Pfad verknüpft.");
-                return Result.Success;
-            }
+            // Abbreviate ActiveLamaData
+            LamaData lmData = LamaDoc.Instance.ActiveLamaData;
+
+            #endregion
+
+            // <-- Code for object selection comes here -->
 
             //Get Innenflaechen
             var gc = new GetObject();
@@ -77,36 +78,35 @@ namespace Bauphysik.Commands
 
             ObjRef[] adjacentObjRefs = gc2.Objects();
 
-
             //Get List of all Objects
             List<ObjRef> objRefList = new List<ObjRef>() { selectedObjRef };
             if (adjacentObjRefs != null && adjacentObjRefs.Length > 0) objRefList.AddRange(adjacentObjRefs);
 
-            //Updata LayerManager.Data by selecting
-            RhinoHelpers.SelectObjRefs(objRefList);
+            // Read RhinoObjects
+            LamaDoc.Instance.ActiveLamaData.ReadRhinoObjects(objRefList.ToArray());
 
-            RhinoReader rhinoReader = new RhinoReader();
-            rhinoReader.UpdateFromLayers(ref data);
-            rhinoReader.UpdateFromObjects(ref data, objRefList.ToArray());
+            // <-- Code for object selection ends here -->
 
-            //Write Data to Model
-            Connector connector = new Connector();
-            BauModel model = connector.InitModel(data);
+            #region Get Model
 
-            //Handle Errors 2
+            // Write Data to Model
+            Connector connector = new Connector(lmData);
+            BauModel model = connector.Read();
             if (model == null)
             {
                 RhinoApp.WriteLine("Fehler beim Laden des Modells.");
                 return Result.Failure;
             }
-            if (model.Innenflaechen == null || model.Innenflaechen.Count == 0)
-            {
-                RhinoApp.WriteLine("Keine Innenflaechen geladen.");
-                return Result.Failure;
-            }
+
+            #endregion
+
+            // <-- Code for calculations comes here -->
+
+            // Start message
+            RhinoApp.WriteLine("Starte erstelle Referenzflaechen abgeschlossen.");
 
             //Create Referenzflaeche
-            Innenflaeche innenflaeche = model.FindInnenflaeche(selectedObjRef.ObjectId);
+            Innenflaeche innenflaeche = model.GetInnenflaeche(selectedObjRef.ObjectId);
             if (innenflaeche == null)
             {
                 RhinoApp.WriteLine("Keine Innenflaechen nicht gefunden.");
@@ -114,28 +114,28 @@ namespace Bauphysik.Commands
             }
 
             innenflaeche.CreateReferenzflaeche(model.Innenflaechen, model.Bauteile, true);
-
-            //Write Model to Data
-            connector.Write(model, ref data);
-
-            //Update Rhino and XML File from Data
-            XMLWriter writer = new XMLWriter();
-            writer.WriteFile(data, filepath);
-
-            RhinoWriter rhinoWriter = new RhinoWriter();
-            rhinoWriter.UpdateRhino(data);
-
-            //Update Views in Rhino
-            RhinoDoc.ActiveDoc.Views.Redraw();
-
-            //Update Panel
-            ObjRef[] objRefs = RhinoDoc.ActiveDoc.Objects.GetSelectedObjects(false, false).Cast<RhinoObject>().Select(i => new ObjRef(i)).ToArray();
-            if (objRefs == null || objRefs.Length == 0) return Result.Failure;
-
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs, false);
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs, true);
-
+            
+            // End message
             RhinoApp.WriteLine("Erstelle Referenzflaechen abgeschlossen.");
+
+            #region Write model
+
+            // Write back to LamaData
+            connector.Write(model);
+
+            // Update Rhino objects
+            lmData.WriteRhinoObjects();
+
+            
+            
+
+            // Update Panel
+            LamaDoc.Instance.Update();
+
+            // Update views
+            doc.Views.Redraw();
+
+            #endregion
 
             return Result.Success;
         }

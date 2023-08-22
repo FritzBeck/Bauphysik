@@ -13,6 +13,8 @@ using Bauphysik.Data;
 using Bauphysik.Helpers;
 using LayerManager;
 using LayerManager.Parser;
+using LayerManager.Data;
+using LayerManager.Doc;
 
 namespace Bauphysik.Commands
 {
@@ -23,22 +25,21 @@ namespace Bauphysik.Commands
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            //Lade FilePath
-            string filepath = BauphysikPlugin.Instance.StringArray.Item(0);
-            if (string.IsNullOrWhiteSpace(filepath))
+            #region Get LamaData
+
+            // Return if ActiveLamaData == null
+            if (LamaDoc.Instance.ActiveLamaData == null)
             {
-                RhinoApp.WriteLine("Keine Tabellen verknüpft.");
+                RhinoApp.WriteLine("Keine Tabellen geladen.");
                 return Result.Success;
             }
 
-            //Lade Data
-            XMLReader xMLReader = new XMLReader();
-            RootDB data = xMLReader.ReadFile(filepath);
-            if (data == null)
-            {
-                RhinoApp.WriteLine("Kein gültiger Pfad verknüpft.");
-                return Result.Success;
-            }
+            // Abbreviate ActiveLamaData
+            LamaData lmData = LamaDoc.Instance.ActiveLamaData;
+
+            #endregion
+
+            // <-- Code for object selection comes here -->
 
             //Get Innenflaechen
             var gc = new GetObject();
@@ -72,55 +73,57 @@ namespace Bauphysik.Commands
 
             bool overWriteBool = overWriteBoolOpt.CurrentValue;
 
-            RhinoApp.WriteLine("Starte Berchnung der Verschiebung...");
+            // Read RhinoObjects
+            lmData.ReadRhinoObjects(selectedObjectRefs);
 
-            RhinoReader rhinoReader = new RhinoReader();
-            rhinoReader.UpdateFromLayers(ref data);
-            rhinoReader.UpdateFromObjects(ref data, selectedObjectRefs);
+            // <-- Code for object selection ends here -->
 
-            //Write Data to Model
-            Connector connector = new Connector();
-            BauModel model = connector.InitModel(data);
+            #region Get Model
 
-            //Handle Errors 2
+            // Write Data to Model
+            Connector connector = new Connector(lmData);
+            BauModel model = connector.Read();
             if (model == null)
             {
-                RhinoApp.WriteLine("Kein Modell geladen.");
+                RhinoApp.WriteLine("Fehler beim Laden des Modells.");
                 return Result.Failure;
             }
 
-            if (model.Innenflaechen == null || model.Innenflaechen.Count == 0)
-            {
-                RhinoApp.WriteLine("Keine Innenflaechen geladen.");
-                return Result.Failure;
-            }
+            #endregion
+
+            // <-- Code for calculations comes here -->
+
+            // Start message
+            RhinoApp.WriteLine("Starte Berchnung der Verschiebung...");
 
             //Calculate orientation
-            foreach (Innenflaeche innenflaeche in model.Innenflaechen)
-                innenflaeche.CalculateVerschiebung(model.Bauteile, overWriteBool);
+            if (model.Innenflaechen != null)
+                foreach (Innenflaeche innenflaeche in model.Innenflaechen)
+                    innenflaeche.CalculateVerschiebung(model.Bauteile, overWriteBool);
 
-            //Write Model to Data
-            connector.Write(model, ref data);
-
-            //Update Rhino and XML File from Data
-            XMLWriter writer = new XMLWriter();
-            writer.WriteFile(data, filepath);
-
-            RhinoWriter rhinoWriter = new RhinoWriter();
-            rhinoWriter.UpdateRhino(data);
-
-            //Update Views in Rhino
-            RhinoDoc.ActiveDoc.Views.Redraw();
-
-            //Update Panel
-            ObjRef[] objRefs = RhinoDoc.ActiveDoc.Objects.GetSelectedObjects(false, false).Cast<RhinoObject>().Select(i => new ObjRef(i)).ToArray();
-            if (objRefs == null || objRefs.Length == 0) return Result.Failure;
-
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs, false);
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs, true);
-
+            // End message
             RhinoApp.WriteLine("Berechnung der Verschiebung abgeschlossen.");
 
+            // <-- Code for calculations ends here -->
+
+            #region Write model
+
+            // Write back to LamaData
+            connector.Write(model);
+
+            // Update Rhino objects
+            lmData.WriteRhinoObjects();
+
+            
+            
+
+            // Update Panel
+            LamaDoc.Instance.Update();
+
+            // Update views
+            doc.Views.Redraw();
+
+            #endregion
 
             return Result.Success;
         }

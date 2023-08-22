@@ -83,6 +83,8 @@ namespace Bauphysik.Helpers
             Fassadenflaeche,
             Fassade,
             Referenzflaeche,
+            Geschoss
+
         }
 
         public enum Referenzflaeche
@@ -144,7 +146,6 @@ namespace Bauphysik.Helpers
             lLab,
             lSitu
         }
-
 
         public enum RaumAttributesEnum
         {

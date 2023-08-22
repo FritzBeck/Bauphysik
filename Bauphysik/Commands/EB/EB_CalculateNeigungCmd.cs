@@ -13,6 +13,8 @@ using Bauphysik.Data;
 using Bauphysik.Helpers;
 using LayerManager;
 using LayerManager.Parser;
+using LayerManager.Data;
+using LayerManager.Doc;
 
 namespace Bauphysik.Commands
 {
@@ -23,23 +25,18 @@ namespace Bauphysik.Commands
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            //Lade FilePath
-            string filepath = BauphysikPlugin.Instance.StringArray.Item(0);
-            if (string.IsNullOrWhiteSpace(filepath))
+            #region Get LamaData
+
+            // Return if ActiveLamaData == null
+            if (LamaDoc.Instance.ActiveLamaData == null)
             {
-                RhinoApp.WriteLine("Keine Tabellen verknüpft.");
+                RhinoApp.WriteLine("Keine Tabellen geladen.");
                 return Result.Success;
             }
 
-            //Lade Data
-            XMLReader xMLReader = new XMLReader();
-            RootDB data = xMLReader.ReadFile(filepath);
-            if (data == null)
-            {
-                RhinoApp.WriteLine("Kein gültiger Pfad verknüpft.");
-                return Result.Success;
-            }
+            #endregion
 
+            // <-- Code for object selection comes here -->
 
             //Get Innenflaechen
             var gc = new GetObject();
@@ -73,53 +70,54 @@ namespace Bauphysik.Commands
 
             bool overWriteBool = overWriteBoolOpt.CurrentValue;
 
-            RhinoApp.WriteLine("Starte Berechne Neigung...");
+            // <-- Code for object selection ends here -->
 
-            RhinoReader rhinoReader = new RhinoReader();
-            rhinoReader.UpdateFromLayers(ref data);
-            rhinoReader.UpdateFromObjects(ref data, selectedObjectRefs);
+            #region Get Model
 
-            //Write Data to Model
-            Connector connector = new Connector();
-            BauModel model = connector.InitModel(data);
+            // Read RhinoObjects
+            LamaDoc.Instance.ActiveLamaData.ReadRhinoObjects(selectedObjectRefs);
 
-            //Handle Errors 2
+            // Write LamaData to Model
+            Connector connector = new Connector(LamaDoc.Instance.ActiveLamaData);
+            BauModel model = connector.Read();
             if (model == null)
             {
                 RhinoApp.WriteLine(Names.shift + Names.warning + "Fehler beim Laden des Modells." + Names.cancelCalc);
                 return Result.Failure;
             }
-            if (model.Innenflaechen == null || model.Innenflaechen.Count == 0)
-            {
-                RhinoApp.WriteLine(Names.shift + Names.warning + "Keine Innenflaechen geladen." + Names.cancelCalc);
-                return Result.Failure;
-            }
+
+            #endregion
+
+            // <-- Code for calculations comes here -->
+
+            // Start message
+            RhinoApp.WriteLine("Starte Berechne Neigung...");
 
             //Calculate orientation
-            foreach (Innenflaeche innenflaeche in model.Innenflaechen)
-                innenflaeche.CalculateNeigung(overWriteBool);
+            if (model.Innenflaechen != null)
+                foreach (Innenflaeche innenflaeche in model.Innenflaechen)
+                    innenflaeche.CalculateNeigung(overWriteBool);
 
-            //Write Model to Data
-            connector.Write(model, ref data);
-
-            //Update Rhino and XML File from Data
-            XMLWriter writer = new XMLWriter();
-            writer.WriteFile(data, filepath);
-
-            RhinoWriter rhinoWriter = new RhinoWriter();
-            rhinoWriter.UpdateRhino(data);
-
-            //Update Views in Rhino
-            RhinoDoc.ActiveDoc.Views.Redraw();
-
-            //Update Panel
-            ObjRef[] objRefs = RhinoDoc.ActiveDoc.Objects.GetSelectedObjects(false, false).Cast<RhinoObject>().Select(i => new ObjRef(i)).ToArray();
-            if (objRefs == null || objRefs.Length == 0) return Result.Failure;
-
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs, false);
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs, true);
-
+            // End message
             RhinoApp.WriteLine("Berechne Neigung abgeschlossen.");
+
+            // <-- Code for calculations ends here -->
+
+            #region Write model
+
+            // Write back to LamaData
+            connector.Write(model);
+
+            // Update Rhino objects
+            LamaDoc.Instance.ActiveLamaData.WriteRhinoObjects();
+
+            // Update Panel
+            LamaDoc.Instance.Update();
+
+            // Update views
+            doc.Views.Redraw();
+
+            #endregion
 
             return Result.Success;
         }

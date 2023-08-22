@@ -8,7 +8,7 @@ namespace Bauphysik.Data
 {
     public abstract class SpatialElement : IModelElement
     {
-        public Guid LayerGuid;
+
 
     }
 }

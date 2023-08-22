@@ -14,6 +14,8 @@ using Bauphysik.Data;
 using Bauphysik.Helpers;
 using LayerManager;
 using LayerManager.Parser;
+using LayerManager.Data;
+using LayerManager.Doc;
 
 namespace Bauphysik.Commands
 {
@@ -23,23 +25,21 @@ namespace Bauphysik.Commands
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            //Lade FilePath
-            string filepath = BauphysikPlugin.Instance.StringArray.Item(0);
-            if (string.IsNullOrWhiteSpace(filepath))
+            #region Get LamaData
+
+            // Return if ActiveLamaData == null
+            if (LamaDoc.Instance.ActiveLamaData == null)
             {
-                RhinoApp.WriteLine("Keine Tabellen verknüpft.");
+                RhinoApp.WriteLine("Keine Tabellen geladen.");
                 return Result.Success;
             }
 
-            //Lade Data
-            XMLReader xMLReader = new XMLReader();
-            RootDB data = xMLReader.ReadFile(filepath);
-            if (data == null)
-            {
-                RhinoApp.WriteLine("Kein gültiger Pfad verknüpft.");
-                return Result.Success;
-            }
+            // Abbreviate ActiveLamaData
+            LamaData lmData = LamaDoc.Instance.ActiveLamaData;
 
+            #endregion
+
+            // <-- Code for object selection comes here -->
 
             var gc = new GetObject();
             gc.SetCommandPrompt("Wähle Innenflächen um R'_w,ges zu berechnen");
@@ -72,17 +72,26 @@ namespace Bauphysik.Commands
 
             bool overWriteBool = overWriteBoolOpt.CurrentValue;
 
-            RhinoApp.WriteLine("Starte Berechnung von Direktschalldämmmaß...");
+            // Read RhinoObjects
+            lmData.ReadRhinoObjects(selectedObjectRefs);
 
-            RhinoReader rhinoReader = new RhinoReader();
-            rhinoReader.UpdateFromLayers(ref data);
-            rhinoReader.UpdateFromObjects(ref data, selectedObjectRefs);
+            // <-- Code for object selection ends here -->
 
-            //Write Data to Model
-            Connector connector = new Connector();
-            BauModel model = connector.InitModel(data);
+            #region Get Model
 
-            //Handle Errors 2
+            // Write Data to Model
+            Connector connector = new Connector(lmData);
+            BauModel model = connector.Read();
+            if (model == null)
+            {
+                RhinoApp.WriteLine("Fehler beim Laden des Modells.");
+                return Result.Failure;
+            }
+
+            #endregion
+
+            #region Error handling
+
             if (model == null)
             {
                 RhinoApp.WriteLine("Fehler beim Laden des Modells.");
@@ -98,6 +107,13 @@ namespace Bauphysik.Commands
                 RhinoApp.WriteLine("Keine Räume geladen.");
                 return Result.Failure;
             }
+
+            #endregion
+
+            // <-- Code for calculations comes here -->
+
+            // Start message
+            RhinoApp.WriteLine("Starte Berechnung von Direktschalldämmmaß...");
 
             RhinoApp.WriteLine();
             RhinoApp.WriteLine(Names.hashSep + Names.hashSep);
@@ -122,11 +138,11 @@ namespace Bauphysik.Commands
                 }
                      
                 RhinoApp.WriteLine();
-                RhinoApp.WriteLine(Names.shift + "Raum " + "(" + raum.ObjectGuid + ")");
+                RhinoApp.WriteLine(Names.shift + "Raum " + "(" + raum.ObjectId + ")");
                 RhinoApp.WriteLine(Names.shift2 + "Name = " + raum.Raumname);
                 RhinoApp.WriteLine(Names.shift2 + "Kategorie = " + raum.Raumkategorie);
 
-                if (raum.RelatedGuids == null || raum.RelatedGuids.Count == 0)
+                if (raum.Innenflaechen == null || raum.Innenflaechen.Count == 0)
                 {
                     RhinoApp.WriteLine();
                     RhinoApp.WriteLine(Names.shift + "!!! Raum hat keine Innenflaechen  =>  Berechnung abgebrochen");
@@ -134,7 +150,7 @@ namespace Bauphysik.Commands
                 }
 
                 RhinoApp.Write(Names.shift2);
-                double ss = raum.Ss(model.Innenflaechen, true);
+                double ss = raum.Ss(true);
 
                 if (ss <= 0)
                 {
@@ -143,16 +159,15 @@ namespace Bauphysik.Commands
                     continue;
                 }
                 
-
-                foreach (Guid guid in raum.RelatedGuids)
+                foreach (Innenflaeche innenflaeche in raum.Innenflaechen)
                 {
-                    Innenflaeche innenflaeche = model.FindInnenflaeche(guid);
+/*                    Innenflaeche innenflaeche = model.GetInnenflaeche(guid);
                     if (innenflaeche == null || innenflaeche.Fassade == null) continue;
-
+*/
                     RhinoApp.WriteLine();
                     RhinoApp.WriteLine(Names.dashSepShort);
                     RhinoApp.WriteLine();
-                    RhinoApp.WriteLine(Names.shift2 + "Innenflaeche (Guid: " + innenflaeche.ObjectGuid + ")");
+                    RhinoApp.WriteLine(Names.shift2 + "Innenflaeche (Guid: " + innenflaeche.ObjectId + ")");
 
                     innenflaeche.Fassade.BerechneDirektSchall(ss, innenflaeche, overWriteBool);
                 }
@@ -164,20 +179,30 @@ namespace Bauphysik.Commands
             RhinoApp.WriteLine(Names.hashSep + Names.hashSep);
             RhinoApp.WriteLine(Names.hashSep + Names.hashSep);
 
-            //Write Model to Data
-            connector.Write(model, ref data);
 
-            //Update Rhino and XML File from Data
-            XMLWriter writer = new XMLWriter();
-            writer.WriteFile(data, filepath);
-
-            RhinoWriter rhinoWriter = new RhinoWriter();
-            rhinoWriter.UpdateRhino(data);
-
-            //Update Views in Rhino
-            RhinoDoc.ActiveDoc.Views.Redraw();
-
+            // End message
             RhinoApp.WriteLine("Berechnung von Direktschalldämmmaß abgeschlossen.");
+
+            // <-- Code for calculations ends here -->
+
+            #region Write model
+
+            // Write back to LamaData
+            connector.Write(model);
+
+            // Update Rhino objects
+            lmData.WriteRhinoObjects();
+
+            
+            
+
+            // Update Panel
+            LamaDoc.Instance.Update();
+
+            // Update views
+            doc.Views.Redraw();
+
+            #endregion           
 
             return Result.Success;
         }

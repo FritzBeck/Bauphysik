@@ -8,7 +8,7 @@ namespace Bauphysik.Data
 {
     public class Bauteil
     {
-        public Guid ObjectGuid;
+        public Guid ObjectId;
 
         public string Name;
 
@@ -18,7 +18,7 @@ namespace Bauphysik.Data
 
         public Bauteil(Guid guid, string name)
         {
-            ObjectGuid = guid;
+            ObjectId = guid;
             Name = name;
         }
     }

@@ -40,9 +40,9 @@ namespace Bauphysik.Data
         public Referenzflaeche Referenzflaeche { get; set; }
 
 
-        public Innenflaeche(Guid rhObjGuid)
+        public Innenflaeche(Guid objectId)
         {
-            ObjectGuid = rhObjGuid;
+            ObjectId = objectId;
         }
 
 
@@ -85,7 +85,7 @@ namespace Bauphysik.Data
             int m = 0;
             foreach (Innenflaeche innenflaeche in innenflaechen)
             {
-                if (innenflaeche.ObjectGuid == this.ObjectGuid) continue;
+                if (innenflaeche.ObjectId == this.ObjectId) continue;
 
                 Brep brep = innenflaeche.GetBrep();
                 if (brep == null || brep.Faces == null || brep.Faces.Count() == 0) continue;
@@ -110,7 +110,7 @@ namespace Bauphysik.Data
         {
             if (Verschiebung != null && !overWrite) return;
 
-            if (RhinoHelpers.CheckIsNull(Bauteil, Names.BauteilAttributeEnum.Bauteil.ToString(), this.ObjectGuid.ToString(), true)) return;
+            if (RhinoHelpers.CheckIsNull(Bauteil, Names.BauteilAttributeEnum.Bauteil.ToString(), this.ObjectId.ToString(), true)) return;
 
             RhinoDoc doc = RhinoDoc.ActiveDoc;
 
@@ -192,7 +192,7 @@ namespace Bauphysik.Data
         {
             if (Neigung != null && !overWrite) return;
 
-            RhinoObject rhObj = RhinoDoc.ActiveDoc.Objects.Find(this.ObjectGuid);
+            RhinoObject rhObj = RhinoDoc.ActiveDoc.Objects.Find(this.ObjectId);
             if (rhObj == null) return;
 
             ObjRef objRef = new ObjRef(rhObj);
@@ -665,9 +665,9 @@ namespace Bauphysik.Data
 
             foreach (Innenflaeche innenflaeche in innenflaeches)
             {
-                if (innenflaeche.ObjectGuid == ObjectGuid) continue;
+                if (innenflaeche.ObjectId == ObjectId) continue;
 
-                ObjRef objRefToCheck = new ObjRef(RhinoDoc.ActiveDoc, innenflaeche.ObjectGuid);
+                ObjRef objRefToCheck = new ObjRef(RhinoDoc.ActiveDoc, innenflaeche.ObjectId);
                 if (objRefToCheck == null) return null;
 
                 foreach (BrepEdge edgeToCheck in objRefToCheck.Brep().Edges)
@@ -700,7 +700,7 @@ namespace Bauphysik.Data
             foreach (Innenflaeche innenflaeche in innenflaeches)
             {
                 //Falls beide die gleiche Referenzflaeche haben, dann weiter
-                if (innenflaeche.Referenzflaeche == null || innenflaeche.Referenzflaeche.ObjectGuid == Referenzflaeche.ObjectGuid) continue;
+                if (innenflaeche.Referenzflaeche == null || innenflaeche.Referenzflaeche.ObjectId == Referenzflaeche.ObjectId) continue;
 
                 Brep brepToCheck = innenflaeche.Referenzflaeche.GetBrep();
                 if (referenzBrep.IsDuplicate(brepToCheck, 0))
@@ -758,7 +758,7 @@ namespace Bauphysik.Data
                 {
                     adjacentDicke *= adjacentInneflaeche.Verschiebung ?? 1;
 
-                    //Brep adjacentBrep = new ObjRef(RhinoDoc.ActiveDoc, adjacentInneflaeche.ObjectGuid).Brep();
+                    //Brep adjacentBrep = new ObjRef(RhinoDoc.ActiveDoc, adjacentInneflaeche.ObjectId).Brep();
                     //extensionLength = CalculateExtensionLength(adjacentBrep, adjacentDicke);
                     extensionLength = adjacentDicke;
                 }

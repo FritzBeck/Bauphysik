@@ -14,6 +14,8 @@ using Rhino.ApplicationSettings;
 using Bauphysik.Data;
 using LayerManager;
 using LayerManager.Parser;
+using LayerManager.Data;
+using LayerManager.Doc;
 
 namespace Bauphysik.Commands
 {
@@ -24,28 +26,28 @@ namespace Bauphysik.Commands
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            //Lade FilePath
-            string filepath = BauphysikPlugin.Instance.StringArray.Item(0);
-            if (string.IsNullOrWhiteSpace(filepath))
+            #region Get LamaData
+
+            // Return if ActiveLamaData == null
+            if (LamaDoc.Instance.ActiveLamaData == null)
             {
-                RhinoApp.WriteLine("Keine Tabellen verknüpft.");
+                RhinoApp.WriteLine("Keine Tabellen geladen.");
                 return Result.Success;
             }
 
-            //Lade Data
-            XMLReader xMLReader = new XMLReader();
-            RootDB data = xMLReader.ReadFile(filepath);
-            if (data == null)
-            {
-                RhinoApp.WriteLine("Kein gültiger Pfad verknüpft.");
-                return Result.Success;
-            }
+            // Abbreviate ActiveLamaData
+            LamaData lmData = LamaDoc.Instance.ActiveLamaData;
+
+            #endregion
+
+            // <-- Code for object selection comes here -->
 
             //Get Innenflaechen
             var gc = new GetObject();
             gc.SetCommandPrompt("Wähle Innenflaeche um Fassadenelement zu erstellen");
 
             ObjRef selectedObjectRef = null;
+
 
             while (true)
             {
@@ -67,35 +69,30 @@ namespace Bauphysik.Commands
                 break;
             }
 
+            lmData.ReadRhinoObjects(new ObjRef[] { selectedObjectRef });
+            ///rhinoReader.UpdateFromChildObjects(ref lmData);
 
-            RhinoReader rhinoReader = new RhinoReader();
-            rhinoReader.UpdateFromLayers(ref data);
-            rhinoReader.UpdateFromObjects(ref data, new ObjRef[] { selectedObjectRef } );
-            rhinoReader.UpdateFromChildObjects(ref data);
+            // <-- Code for object selection ends here -->
 
-            //Write Data to Model
-            Connector connector = new Connector();
-            BauModel model = connector.InitModel(data);
-            if (model.Innenflaechen == null || model.Innenflaechen.Count == 0)
+            #region Get Model
+
+            // Write Data to Model
+            Connector connector = new Connector(lmData);
+            BauModel model = connector.Read();
+            if (model == null)
             {
-                RhinoApp.WriteLine("Keine Innenflaechen geladen.");
+                RhinoApp.WriteLine("Fehler beim Laden des Modells.");
                 return Result.Failure;
             }
 
+            #endregion
 
-/*            if (model.Innenflaechen[0].Fassade == null)
-            {
-                RhinoApp.WriteLine("Keine Fassade geladen.");
-                return Result.Failure;
-            }
+            // <-- Code for calculations comes here -->
 
-            Fassade fassade = model.Innenflaechen[0].Fassade;
-            List<ObjRef> fassadeObjects = GetFassadeObjectGuids(fassade);
+            // Start message
+            RhinoApp.WriteLine("Starte Erstelle Fassadenelement...");
 
-            data = model*/
-
-
-            //Select Verfahren
+            // Select Verfahren
             string[] elementArray =
             {
                 "Fenster",
@@ -119,16 +116,14 @@ namespace Bauphysik.Commands
             //Select point on surface
             var gp1 = new GetPointOnBreps();
             gp1.SetCommandPrompt("Punkt auf Innenflaeche");
-
-
             gp1.Breps.Add(selectedObjectRef.Brep());
 
             gp1.Get();
             if (gp1.CommandResult() != Result.Success)
                 return gp1.CommandResult();
 
-            BrepFace brepFace = selectedObjectRef.Brep().Faces[0];
-            brepFace.TryGetPlane(out Plane plane);
+/*            BrepFace brepFace = selectedObjectRef.Brep().Faces[0];
+            brepFace.TryGetPlane(out Plane plane);*/
 
             if (model.Innenflaechen == null || model.Innenflaechen.Count == 0) return Result.Failure;
             Innenflaeche innenflaeche = model.Innenflaechen[0];
@@ -153,8 +148,6 @@ namespace Bauphysik.Commands
                     return go2.CommandResult();
 
                 int typeIndex = go2.Option().Index - 1;
-
-                RhinoApp.WriteLine("Starte Erstelle Fassadenelement...");
 
                 Fenster fenster = new Fenster(guid);
                 fenster.U = gp1.U;
@@ -209,29 +202,28 @@ namespace Bauphysik.Commands
                 }
             }
 
-            connector.Write(model, ref data);
+            // End message
+            RhinoApp.WriteLine("Erstelle Fassadenelement abgeschlossen.");
 
+            // <-- Code for calculations ends here -->
+
+            #region Write model
+
+            // Write back to LamaData
+            connector.Write(model);
+
+            // Update Rhino objects
+            lmData.WriteRhinoObjects();
+
+
+            // Update Panel
+            LamaDoc.Instance.Update();
+
+            // Update views
             doc.Views.Redraw();
 
-            //Update Rhino and XML File from Data
-            XMLWriter writer = new XMLWriter();
-            writer.WriteFile(data, filepath);
-
-            RhinoWriter rhinoWriter = new RhinoWriter();
-            rhinoWriter.UpdateRhino(data);
-
-            //Update Views in Rhino
-            RhinoDoc.ActiveDoc.Views.Redraw();
-
-            //Update Panel
-            ObjRef[] objRefs = RhinoDoc.ActiveDoc.Objects.GetSelectedObjects(false, false).Cast<RhinoObject>().Select(i => new ObjRef(i)).ToArray();
-            if (objRefs == null || objRefs.Length == 0) return Result.Failure;
-
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs, false);
-            RhinoDoc.ActiveDoc.Objects.Select(objRefs, true);
-
-
-            RhinoApp.WriteLine("Erstelle Fassadenelement abgeschlossen.");
+            #endregion
+            
             return Result.Success;
         }
 

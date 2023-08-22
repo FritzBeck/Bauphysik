@@ -16,7 +16,7 @@ namespace Bauphysik.Data
 
         public Hauptkonstruktion(Guid objectGuid)
         {
-            ObjectGuid = objectGuid;
+            ObjectId = objectGuid;
         }
 
         /// <summary>

@@ -55,7 +55,7 @@ namespace Bauphysik.Data
 
         public Fenster(Guid objectGuid)
         {
-            ObjectGuid = objectGuid;
+            ObjectId = objectGuid;
             Typ = Names.TypValueEnum.Fenster.ToString();
         }
 
@@ -154,7 +154,7 @@ namespace Bauphysik.Data
                 RhinoObject rhObj = this.GetRhinoObject();
                 if (rhObj != null) RhinoDoc.ActiveDoc.Objects.Delete(rhObj);
 
-                this.ObjectGuid = newGuid;
+                this.ObjectId = newGuid;
             }
 
         }
@@ -219,9 +219,9 @@ namespace Bauphysik.Data
         {
 
             RhinoApp.WriteLine();
-            RhinoApp.WriteLine(Names.shift3 + "Fenster (Guid: " + ObjectGuid.ToString() + ")");
+            RhinoApp.WriteLine(Names.shift3 + "Fenster (Guid: " + ObjectId.ToString() + ")");
 
-            if (RhinoHelpers.CheckIsNull(Riw, Names.FensterAttributeEnum.Riw.ToString(), this.ObjectGuid.ToString(), true)) return;
+            if (RhinoHelpers.CheckIsNull(Riw, Names.FensterAttributeEnum.Riw.ToString(), this.ObjectId.ToString(), true)) return;
 
             double flaeche = FlaecheGesamt();
             double r_iw = Riw ?? 0;

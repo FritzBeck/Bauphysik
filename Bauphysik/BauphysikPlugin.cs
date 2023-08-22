@@ -22,12 +22,9 @@ namespace Bauphysik
         private const int MAJOR = 1;
         private const int MINOR = 0;
 
-        public DocumentData StringArray { get; private set; }
-
         public BauphysikPlugin()
         {
             Instance = this;
-            StringArray = new DocumentData();
         }
 
         ///<summary>Gets the only instance of the BauphysikPlugin plug-in.</summary>
@@ -54,14 +51,12 @@ namespace Bauphysik
         /// </summary>
         private void OnCloseDocument(object sender, DocumentEventArgs e)
         {
-            // When the document is closed, clear our 
-            // document user data containers.
-            StringArray.Clear();
+
         }
 
         /// <summary>
         /// Called whenever a Rhino is about to save a .3dm file.  If you want to save
-        //  plug-in document data when a model is saved in a version 5 .3dm file, then
+        //  plug-in document LmData when a model is saved in a version 5 .3dm file, then
         //  you must override this function to return true and you must override WriteDocument().
         /// </summary>
         protected override bool ShouldCallWriteDocument(FileWriteOptions options)
@@ -70,77 +65,22 @@ namespace Bauphysik
         }
 
         /// <summary>
-        /// Called when Rhino is saving a .3dm file to allow the plug-in to save document user data.
+        /// Called when Rhino is saving a .3dm file to allow the plug-in to save document user LmData.
         /// </summary>
         protected override void WriteDocument(RhinoDoc doc, BinaryArchiveWriter archive, FileWriteOptions options)
         {
-            // Write the version of our document data
+            // Write the version of our document LmData
             archive.Write3dmChunkVersion(MAJOR, MINOR);
-            // Write the string table
-            StringArray.WriteDocument(archive);
+
         }
 
         /// <summary>
-        /// Called whenever a Rhino document is being loaded and plug-in user data was
+        /// Called whenever a Rhino document is being loaded and plug-in user LmData was
         /// encountered written by a plug-in with this plug-in's GUID.
         /// </summary>
         protected override void ReadDocument(RhinoDoc doc, BinaryArchiveReader archive, FileReadOptions options)
         {
-            string pathUserData = null;
-            //string pathUserData2;
 
-            archive.Read3dmChunkVersion(out var major, out var minor);
-            if (MAJOR == major && MINOR == minor)
-            {
-                // Always read user data even though you might not use it.
-                RhinoApp.WriteLine("Bauphysik PlugIn");
-                RhinoApp.WriteLine("Starte Verknüpfe Tabellen...");
-
-                var string_table = new DocumentData();
-                string_table.ReadDocument(archive);
-
-                if (!options.ImportMode && !options.ImportReferenceMode)
-                {
-                    if (string_table.Count > 0)
-                    {
-                        StringArray.AddRange(string_table.ToArray());
-
-                        try { pathUserData = StringArray.Item(0); }
-                        catch { }
-
-                        if (!string.IsNullOrWhiteSpace(pathUserData))
-                        {
-                            string filepath = this.StringArray.Item(0);
-                            if (string.IsNullOrWhiteSpace(filepath)) return;
-
-                            RhinoApp.WriteLine("Pfad: " + filepath);
-
-                            XMLReader xMLReader = new XMLReader();
-                            RootDB data = xMLReader.ReadFile(filepath);
-
-                            if (data == null)
-                            {
-                                RhinoApp.WriteLine("Fehler beim Laden der Tabellen: " + pathUserData);
-                                RhinoApp.WriteLine("Mögliche Fehlerquellen:");
-                                RhinoApp.WriteLine("Ist der Pfad fehlerhaft? Ist Tabelle geöffnet? Ist die Struktur der Tabelle fehlerhaft?");
-                            }
-                            else
-                            {
-                                RhinoApp.WriteLine("Tabellen wurden verknüpft");
-                                RhinoApp.WriteLine("Verknüpfe Tabellen abgeschlossen.");
-                            }
-
-
-                        }
-                        else
-                            RhinoApp.WriteLine("Datei kann nicht gelesen werden");
-                    }
-                    else
-                        RhinoApp.WriteLine("Keine Tabellen verknüpft.");
-
-
-                }
-            }
         }
 
 
