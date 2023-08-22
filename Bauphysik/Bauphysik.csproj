@@ -14,14 +14,9 @@
   </ItemGroup>
   
   <ItemGroup>
+    <PackageReference Include="LayerManager" Version="0.2.1" />
     <PackageReference Include="RhinoCommon" Version="7.21.22208.13001" IncludeAssets="compile;build" />
     <PackageReference Include="RhinoWindows" Version="7.21.22208.13001" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <Reference Include="LayerManager">
-      <HintPath>..\..\..\..\01 LayerManager\06 Code\LayerManager\LayerManager\bin\Debug\net48\LayerManager.dll</HintPath>
-    </Reference>
   </ItemGroup>
   
   <PropertyGroup Condition="$(Configuration) == 'Debug' AND $([MSBuild]::IsOSPlatform(Windows))">
